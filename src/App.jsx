@@ -1,9 +1,9 @@
-// src/App.jsx
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { Canvas, useThree } from '@react-three/fiber'
+import { OrbitControls, useGLTF, Html } from '@react-three/drei'
 import * as THREE from 'three'
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import { useMemo, useState, useCallback, useEffect, Suspense } from 'react'
 import ColorControls from './modules/ColorControls'
+import { Planet } from './Planet'
 
 const vertexShader = `
   varying vec2 vUv;
@@ -23,42 +23,56 @@ const fragmentShader = `
   
   void main() {
     vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
-    
-    // Podstawowe oświetlenie
     float diffuse = max(dot(vNormal, lightDir), 0.0);
-    
-    // Łączymy kolor z oświetleniem
     vec4 baseColor = _color;
     vec4 finalColor = vec4(baseColor.rgb * (diffuse * 0.7 + 0.3), baseColor.a);
-    
     gl_FragColor = finalColor;
   }
 `
+class Color {
+  constructor(r, g, b, a) {
+    this.r = r;
+    this.g = g;
+    this.b = b;
+    this.a = a;
+  }
+}
 
-function Box({ color }) {
-  const uniforms = useMemo(() => ({
-    _color: { value: new THREE.Vector4(1.0, 0.5, 0.0, 1.0) }
-  }), [])
+function Control(){
+  const{
+    camera,
+    gl: {domElement},
+  } = useThree();
 
-  useEffect(() => {
-    uniforms._color.value.set(
-      color.r / 255,
-      color.g / 255,
-      color.b / 255,
-      color.a / 255
-    )
-  }, [color, uniforms._color])
+  return <OrbitControls args={[camera,domElement]}/>
+}
+
+function ThreeScene(){
+
+  const colorStructure = {
+    r: 255,  // Czerwony (0-255)
+    g: 165,  // Zielony (0-255)
+    b: 0,    // Niebieski (0-255)
+    a: 255   // Przezroczystość (0-255)
+  }
+  const [color, setColor] = useState(colorStructure);
+
+  const handleColorChange = useCallback((component, value) => {
+    setColor(prev => ({
+      ...prev,
+      [component]: value
+    }))
+  }, [])
+
 
   return (
-    <mesh>
-      <boxGeometry />
-      <shaderMaterial
-        uniforms={uniforms}
-        vertexShader={vertexShader}
-        fragmentShader={fragmentShader}
-        transparent={true}
-      />
-    </mesh>
+      <Canvas>
+        <ambientLight />
+        <pointLight position={[5, 5, 5]} intensity ={1} />
+        <Control/>
+       
+        <Planet color={color}/>
+      </Canvas>
   )
 }
 
@@ -74,13 +88,7 @@ function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
-      <ColorControls onColorChange={handleColorChange} />
-      <Canvas>
-        <ambientLight intensity={0.5} />
-        <pointLight position={[10, 10, 10]} />
-        <Box color={color} />
-        <OrbitControls />
-      </Canvas>
+      <ThreeScene/>
     </div>
   )
 }
